@@ -1,0 +1,13 @@
+activate/*
+env/*
+docs/_build/*
+build/*
+splunktospan.egg-info/*
+dist/*
+.tox/*
+**.pyc
+.cache/*
+.DS_Store
+**/.DS_Store
+.idea
+tests/logs.txt
