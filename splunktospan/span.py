@@ -175,7 +175,6 @@ class LogParser(object):
 
         duration = self.extract_duration(tags)
         if duration is None:
-            print line
             raise "could not find duration"
         log = ParsedLog(tracer=self.tracer)
         log.operation = match.group("operation")
