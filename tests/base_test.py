@@ -1,6 +1,8 @@
 import unittest
 import re
 import splunktospan
+from collections import OrderedDict
+from datetime import datetime, timedelta
 
 line = """2017-04-17T11:41:47.926046-07:00 app2.javaserver shoppingcart-service: severity="INFO " correlation-ID="3c1c7b15" sid="" thread="http-8080-1" status="SUCCESS" method="DELETE" path="/rest/carts?guid=abc123" status="200" duration="109" REDACTED"""
 
@@ -37,4 +39,22 @@ class TestLogParser(unittest.TestCase):
         tags_str = """httpStatusCode=200"""
         tags = l.extract_tags(tags_str)
         assert "httpStatusCode".lower() in tags
+
+    def test_parse_dict(self):
+        d = OrderedDict([('activity', 'get_thing'),
+            ('dur', '3'),
+            ('host', 'movies.catalog'),
+            ('Correlation-ID', '123abc'),
+            ('tag', 'howdy')])
+        start = datetime.now()
+        end = start + timedelta(milliseconds=3)
+        l = splunktospan.DictParser()
+        l.duration_keys = ['dur']
+        l.operation_keys = ['activity']
+        parsed = l.parse_dict(d, end=end)
+        assert parsed.operation_name == "get_thing"
+        assert parsed.tags['tag'] == "howdy"
+        assert parsed.start_time == start
+        assert parsed.end_time == end
+
 

@@ -1,5 +1,6 @@
 import opentracing
 from datetime import timedelta
+from datetime import datetime
 from dateutil.parser import parse as rfc3339_parse
 
 required_groups = ["operation", "start_time", "tags"]
@@ -40,6 +41,56 @@ class ParsedLog(object):
                                     tags=self.tags,
                                     start_time=self.start_time)
         sp.finish(finish_time=self.end_time)
+
+class DictParser(object):
+    """
+    DictParser parses out a dict into a ParsedLog.
+    """
+    def __init__(self, tracer=None):
+        self.tracer = tracer
+        self.downcase_keys = False
+        self.timestamp_keys = ['start_timestamp']
+        self.operation_keys = ['activity']
+        self.duration_keys = ['dur']
+        self.downcase_keys = True
+
+    def parse_dict(self, d, end=datetime.now()):
+        if self.downcase_keys:
+            dict_copy = d.copy()
+            d = {}
+            for key, value in dict_copy.iteritems():
+                d[key.lower()] = value
+
+        dur = None
+        start = None
+        operation = None
+        for key in self.operation_keys:
+            if key in d:
+                operation = d[key]
+        if operation is None:
+            raise Exception("No operation name found in dict, check your operation_keys list", d)
+
+        for key in self.duration_keys:
+            if key in d:
+                dur = timedelta(milliseconds=int(d[key]))
+        if dur is None:
+            raise Exception("No duration found in dict, check your duration_keys list", d)
+
+        for key in self.timestamp_keys:
+            if key in d:
+                start = rfc3339_parse(d[key])
+        if start is None:
+            start = end - dur
+        else:
+            end = start + dur
+
+        log = ParsedLog(tracer=self.tracer)
+        log.operation_name = operation
+        log.start_time = start
+        log.end_time = end
+        log.tags = d
+        return log
+
 
 class LogParser(object):
     """
@@ -124,6 +175,7 @@ class LogParser(object):
 
         duration = self.extract_duration(tags)
         if duration is None:
+            print line
             raise "could not find duration"
         log = ParsedLog(tracer=self.tracer)
         log.operation = match.group("operation")
