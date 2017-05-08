@@ -1,7 +1,8 @@
 from splunklib.client import connect
 from splunklib.results import ResultsReader
 from splunktospan import LogParser, DictParser
-import datetime
+import re
+import sys
 
 try:
     import utils
@@ -18,13 +19,13 @@ def example_main():
     ls_component_key = "lightstep.component_name"
     join_guid = "guid:correlation_id"
     tags_to_rewrite = {
-        "correlation-id": join_guid,
+        "correlation_id": join_guid,
         "cid": join_guid,
         "component": ls_component_key,
         "host": ls_component_key}
 
 
-    opts = utils.parse(sys.argv[1:], {}, ".splunkrc", usage=usage)
+    opts = utils.parse(sys.argv[1:], {}, ".splunkrc", usage="")
     if len(opts.args) != 1:
         utils.error("Search expression required", 2)
     search = opts.args[0]
@@ -41,14 +42,14 @@ def example_main():
     dict_parser.operation_keys = ['activity']
     dict_parser.duration_keys = duration_keys
 
-    result = service.get(
+    results = service.get(
             "search/jobs/export",
             search=search,
             earliest_time="rt",
             latest_time="rt",
             search_mode="realtime")
 
-    for result in results.ResultsReader(result.body):
+    for result in ResultsReader(results.body):
         try:
             log = None
             # I'm not sure what will actually be used here since ResultReader can return
@@ -63,8 +64,8 @@ def example_main():
                 parsed = log_parser.parse_line(result.message)
 
             parsed.rewrite_tags(tags_to_rewrite)
-            if int(parsed.tags["status"]) >= 300:
-                parsed.tags["error"] = True
+            #if int(parsed.tags["status"]) >= 300:
+            #    parsed.tags["error"] = True
             parsed.to_span()
         except Exception as e:
-            print("Did not parse line: ", result, "(", e, ")")
+            print("Did not parse line: ", result, "(error: ", e, ")")

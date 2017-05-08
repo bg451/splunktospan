@@ -1,7 +1,11 @@
 import opentracing
+import lightstep
+import time
+import os
 from datetime import timedelta
 from datetime import datetime
 from dateutil.parser import parse as rfc3339_parse
+
 
 required_groups = ["operation", "start_time", "tags"]
 
@@ -36,22 +40,27 @@ class ParsedLog(object):
                 if delete:
                     del self.tags[key]
 
-    def to_span():
-        sp = self.tracer.start_span(operation_name=self.operation,
+    def to_span(self):
+        if "guid:correlation_id" in self.tags.keys():
+            sp = self.tracer.start_span(operation_name=self.operation_name,
                                     tags=self.tags,
                                     start_time=self.start_time)
-        sp.finish(finish_time=self.end_time)
+            sp.finish(finish_time=self.end_time)
+        #else:
+        #    print("Skipping because there's no guid:correlation_id in tags")
 
 class DictParser(object):
     """
     DictParser parses out a dict into a ParsedLog.
     """
     def __init__(self, tracer=None):
-        self.tracer = tracer
+        self.tracer = lightstep.Tracer(
+                component_name=os.environ['COMPONENT_NAME'],
+                access_token=os.environ['LIGHTSTEP_ACCESS_TOKEN'])
         self.downcase_keys = False
-        self.timestamp_keys = ['start_timestamp']
-        self.operation_keys = ['activity']
-        self.duration_keys = ['dur']
+        self.timestamp_keys = ['endTime', '_time']
+        self.operation_keys = ['activity', 'path']
+        self.duration_keys = ["latencyMillis", "elapsedMillis", "duration", 'dur']
         self.downcase_keys = True
 
     def parse_dict(self, d, end=datetime.now()):
@@ -67,18 +76,21 @@ class DictParser(object):
         for key in self.operation_keys:
             if key in d:
                 operation = d[key]
+                break
         if operation is None:
             raise Exception("No operation name found in dict, check your operation_keys list", d)
 
         for key in self.duration_keys:
             if key in d:
                 dur = timedelta(milliseconds=int(d[key]))
+                break
         if dur is None:
             raise Exception("No duration found in dict, check your duration_keys list", d)
 
         for key in self.timestamp_keys:
             if key in d:
-                start = rfc3339_parse(d[key])
+                end = rfc3339_parse(d[key])
+                break
         if start is None:
             start = end - dur
         else:
@@ -86,8 +98,8 @@ class DictParser(object):
 
         log = ParsedLog(tracer=self.tracer)
         log.operation_name = operation
-        log.start_time = start
-        log.end_time = end
+        log.start_time = time.mktime(start.timetuple()) + start.microsecond / 1E6
+        log.end_time = time.mktime(end.timetuple()) + end.microsecond / 1E6
         log.tags = d
         return log
 
@@ -109,9 +121,9 @@ class LogParser(object):
     def __init__(self, regex, tracer=None):
         self.tracer = tracer
         self.downcase_keys = False
-        self.duration_keys = ["duration"]
+        self.duration_keys = ["dur"]
         if not self.is_valid_regex(regex):
-            raise "invalid regex used for log parser"
+            raise Exception("invalid regex used for log parser")
         self.regex = regex
 
     def is_valid_regex(self, regex):
@@ -163,7 +175,7 @@ class LogParser(object):
         match = self.regex.match(line)
         index = self.regex.groupindex
         if match is None:
-            raise "could not match line against provided regex"
+            raise Exception("could not match line against provided regex")
 
         tags = self.extract_tags(match.group("tags"))
 
@@ -175,7 +187,7 @@ class LogParser(object):
 
         duration = self.extract_duration(tags)
         if duration is None:
-            raise "could not find duration"
+            raise Exception("could not find duration")
         log = ParsedLog(tracer=self.tracer)
         log.operation = match.group("operation")
         log.start_time = rfc3339_parse(match.group("start_time"))
