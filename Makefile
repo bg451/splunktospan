@@ -1,6 +1,6 @@
 bootstrap:
-	pip install -r requirements.txt
-	pip install -r requirements-test.txt
+	pip2.7 install -r requirements.txt
+	pip2.7 install -r requirements-test.txt
 	python setup.py develop
 
 test:
