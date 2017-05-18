@@ -3,6 +3,8 @@ from splunklib.results import ResultsReader
 from splunktospan import LogParser, DictParser
 import re
 import sys
+import os
+import lightstep
 
 try:
     import utils
@@ -10,12 +12,13 @@ except ImportError:
     raise Exception("Add the SDK repository to your PYTHONPATH to run the examples "
                     "(e.g., export PYTHONPATH=~/splunk-sdk-python.")
 
+tracers = {}
 # for examples of tailing off the splunk API see
 # https://github.com/splunk/splunk-sdk-python/blob/master/examples/stail.py
 # and https://github.com/splunk/splunk-sdk-python/blob/master/examples/follow.py
 
-def example_main():
-    duration_keys = ["latencyMillis", "elapsedMillis", "duration", 'dur']
+def main():
+    duration_keys = ["latencymillis", "elapsedmillis", "duration", 'dur', 'latency']
     ls_component_key = "lightstep.component_name"
     join_guid = "guid:correlation_id"
     tags_to_rewrite = {
@@ -39,7 +42,7 @@ def example_main():
 
     dict_parser = DictParser()
     dict_parser.downcase_keys = True
-    dict_parser.operation_keys = ['activity']
+    dict_parser.operation_keys = ['activity', 'name', 'path']
     dict_parser.duration_keys = duration_keys
 
     results = service.get(
@@ -47,7 +50,8 @@ def example_main():
             search=search,
             earliest_time="rt",
             latest_time="rt",
-            search_mode="realtime")
+            search_mode="realtime",
+            app="tm_home_authoring")
 
     for result in ResultsReader(results.body):
         try:
@@ -66,6 +70,21 @@ def example_main():
             parsed.rewrite_tags(tags_to_rewrite)
             #if int(parsed.tags["status"]) >= 300:
             #    parsed.tags["error"] = True
+
+            component = parsed.tags["host"]
+            if component in tracers:
+                parsed.tracer = tracers[component]
+            else:
+                tracer = lightstep.Tracer(
+                    component_name=component,
+                    access_token=os.environ['LIGHTSTEP_ACCESS_TOKEN']
+                )
+                tracers[component] = tracer
+                parsed.tracer = tracer
+
             parsed.to_span()
         except Exception as e:
             print("Did not parse line: ", result, "(error: ", e, ")")
+
+if __name__ == "__main__":
+    main()

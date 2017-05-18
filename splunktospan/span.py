@@ -1,13 +1,11 @@
-import opentracing
-import lightstep
 import time
-import os
 from datetime import timedelta
 from datetime import datetime
 from dateutil.parser import parse as rfc3339_parse
 
 
 required_groups = ["operation", "start_time", "tags"]
+tracers = {}
 
 class ParsedLog(object):
     """
@@ -16,15 +14,12 @@ class ParsedLog(object):
     in the opentracing package.
     """
 
-    def __init__(self, tracer=None):
-        if tracer is None:
-            tracer = opentracing.tracer
-        self.tracer = tracer
-
+    def __init__(self):
         self.operation = None
         self.start_time = None
         self.end_time = None
         self.tags = {}
+        self.tracer = None
 
     def rewrite_tags(self, rewrite_dict, delete=False):
         """
@@ -46,19 +41,16 @@ class ParsedLog(object):
                                     tags=self.tags,
                                     start_time=self.start_time)
             sp.finish(finish_time=self.end_time)
-        #else:
-        #    print("Skipping because there's no guid:correlation_id in tags")
+        else:
+            print("Skipping because there's no guid:correlation_id in tags")
 
 class DictParser(object):
     """
     DictParser parses out a dict into a ParsedLog.
     """
-    def __init__(self, tracer=None):
-        self.tracer = lightstep.Tracer(
-                component_name=os.environ['COMPONENT_NAME'],
-                access_token=os.environ['LIGHTSTEP_ACCESS_TOKEN'])
+    def __init__(self):
         self.downcase_keys = False
-        self.timestamp_keys = ['endTime', '_time']
+        self.timestamp_keys = ['endTime', 'in']
         self.operation_keys = ['activity', 'path']
         self.duration_keys = ["latencyMillis", "elapsedMillis", "duration", 'dur']
         self.downcase_keys = True
@@ -96,10 +88,10 @@ class DictParser(object):
         else:
             end = start + dur
 
-        log = ParsedLog(tracer=self.tracer)
+        log = ParsedLog()
         log.operation_name = operation
-        log.start_time = time.mktime(start.timetuple()) + start.microsecond / 1E6
-        log.end_time = time.mktime(end.timetuple()) + end.microsecond / 1E6
+        log.start_time = time.mktime(start.utctimetuple()) + start.microsecond / 1E6
+        log.end_time = time.mktime(end.utctimetuple()) + end.microsecond / 1E6
         log.tags = d
         return log
 
