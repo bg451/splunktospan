@@ -25,7 +25,7 @@ def main():
         "correlation_id": join_guid,
         "cid": join_guid,
         "component": ls_component_key,
-        "host": ls_component_key}
+        "sourcetype": ls_component_key}
 
 
     opts = utils.parse(sys.argv[1:], {}, ".splunkrc", usage="")
@@ -63,6 +63,7 @@ def main():
             if result is None:
                 break
             if isinstance(result, dict):
+                print result
                 parsed = dict_parser.parse_dict(result)
             else:
                 parsed = log_parser.parse_line(result.message)
@@ -71,7 +72,7 @@ def main():
             #if int(parsed.tags["status"]) >= 300:
             #    parsed.tags["error"] = True
 
-            component = parsed.tags["host"]
+            component = parsed.tags["sourcetype"]
             if component in tracers:
                 parsed.tracer = tracers[component]
             else:

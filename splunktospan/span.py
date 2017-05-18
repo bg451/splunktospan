@@ -50,12 +50,12 @@ class DictParser(object):
     """
     def __init__(self):
         self.downcase_keys = False
-        self.timestamp_keys = ['endTime', 'in']
+        self.timestamp_keys = ['_time']
         self.operation_keys = ['activity', 'path']
         self.duration_keys = ["latencyMillis", "elapsedMillis", "duration", 'dur']
         self.downcase_keys = True
 
-    def parse_dict(self, d, end=datetime.now()):
+    def parse_dict(self, d, end=None):
         if self.downcase_keys:
             dict_copy = d.copy()
             d = {}
@@ -79,10 +79,19 @@ class DictParser(object):
         if dur is None:
             raise Exception("No duration found in dict, check your duration_keys list", d)
 
-        for key in self.timestamp_keys:
-            if key in d:
-                end = rfc3339_parse(d[key])
-                break
+        #for key in self.timestamp_keys:
+        #    if key in d:
+        #        end = rfc3339_parse(d[key])
+        #        print key
+        #        print end
+        #        if end is not None:
+        #            print end.dst()
+        #        else:
+        #            print d
+        #        break
+        end = rfc3339_parse(d["_raw"].split(" ")[0])
+        #if end is None:
+        #    print d
         if start is None:
             start = end - dur
         else:
