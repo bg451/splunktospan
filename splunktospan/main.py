@@ -63,14 +63,20 @@ def main():
             if result is None:
                 break
             if isinstance(result, dict):
-                print result
+                # print result
                 parsed = dict_parser.parse_dict(result)
             else:
                 parsed = log_parser.parse_line(result.message)
 
             parsed.rewrite_tags(tags_to_rewrite)
-            #if int(parsed.tags["status"]) >= 300:
-            #    parsed.tags["error"] = True
+
+            if "status" in parsed.tags:
+                if int(parsed.tags['status']) >= 400 and int(parsed.tags['status']) < 500:
+                    parsed.tags["error"] = True
+                    parsed.tags['status_class'] = '4xx'
+                if int(parsed.tags['status']) >= 500:
+                    parsed.tags["error"] = True
+                    parsed.tags['status_class'] = '5xx'
 
             component = parsed.tags["sourcetype"]
             if component in tracers:
