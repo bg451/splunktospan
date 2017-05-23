@@ -74,7 +74,7 @@ class DictParser(object):
 
         for key in self.duration_keys:
             if key in d:
-                dur = timedelta(milliseconds=int(d[key]))
+                dur = timedelta(milliseconds=float(d[key]))
                 break
         if dur is None:
             raise Exception("No duration found in dict, check your duration_keys list", d)

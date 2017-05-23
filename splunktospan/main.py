@@ -71,12 +71,24 @@ def main():
             parsed.rewrite_tags(tags_to_rewrite)
 
             if "status" in parsed.tags:
-                if int(parsed.tags['status']) >= 400 and int(parsed.tags['status']) < 500:
+                if isinstance(parsed.tags['status'], int):
+                    if int(parsed.tags['status']) >= 400 and int(parsed.tags['status']) < 500:
+                        parsed.tags["error"] = True
+                        parsed.tags['status_class'] = '4xx'
+                    if int(parsed.tags['status']) >= 500:
+                        parsed.tags["error"] = True
+                        parsed.tags['status_class'] = '5xx'
+                if "FAILURE" == parsed.tags['status']:
                     parsed.tags["error"] = True
-                    parsed.tags['status_class'] = '4xx'
-                if int(parsed.tags['status']) >= 500:
-                    parsed.tags["error"] = True
-                    parsed.tags['status_class'] = '5xx'
+            elif "failed" in parsed.tags and parsed.tags["failed"] == "true":
+                parsed.tags["error"] = True
+
+
+            reservation_prefix = "/rest/unifiedinventory/v1/Reservations/tpi-reserve-"
+            reservation_stable_name = "/rest/unifiedinventory/v1/Reservations/tpi-reserve-{id}"
+
+            if parsed.operation_name.startswith(reservation_prefix):
+                parsed.operation_name = reservation_stable_name
 
             component = parsed.tags["sourcetype"]
             if component in tracers:
