@@ -71,17 +71,25 @@ def main():
             parsed.rewrite_tags(tags_to_rewrite)
 
             if "status" in parsed.tags:
-                if isinstance(parsed.tags['status'], int):
-                    if int(parsed.tags['status']) >= 400 and int(parsed.tags['status']) < 500:
+                try:
+                    http_status = int(parsed.tags['status'])
+                    if http_status >= 200 and http_status < 300:
+                        parsed.tags['status_class'] = '3xx'
+                    if http_status >= 300 and http_status < 400:
+                        parsed.tags['status_class'] = '3xx'
+                    if http_status >= 400 and http_status < 500:
                         parsed.tags["error"] = True
                         parsed.tags['status_class'] = '4xx'
-                    if int(parsed.tags['status']) >= 500:
+                    if http_status >= 500:
                         parsed.tags["error"] = True
                         parsed.tags['status_class'] = '5xx'
-                if "FAILURE" == parsed.tags['status']:
-                    parsed.tags["error"] = True
-            elif "failed" in parsed.tags and parsed.tags["failed"] == "true":
-                parsed.tags["error"] = True
+                except ValueError:
+                    if "FAILURE" == parsed.tags['status']:
+                        parsed.tags["error"] = True
+                    elif 'error' in parsed.tags['status'].lower():
+                        parsed.tags["error"] = True
+                    elif "failed" in parsed.tags and parsed.tags["failed"].lower() == "true":
+                        parsed.tags["error"] = True
 
 
             reservation_prefix = "/rest/unifiedinventory/v1/Reservations/tpi-reserve-"
