@@ -74,7 +74,7 @@ def main():
                 try:
                     http_status = int(parsed.tags['status'])
                     if http_status >= 200 and http_status < 300:
-                        parsed.tags['status_class'] = '3xx'
+                        parsed.tags['status_class'] = '2xx'
                     if http_status >= 300 and http_status < 400:
                         parsed.tags['status_class'] = '3xx'
                     if http_status >= 400 and http_status < 500:
