@@ -40,6 +40,9 @@ class ParsedLog(object):
             sp = self.tracer.start_span(operation_name=self.operation_name,
                                     tags=self.tags,
                                     start_time=self.start_time)
+            if "_raw" in self.tags.keys():
+                sp.log_kv("_raw", self.tags["_raw"])
+
             sp.finish(finish_time=self.end_time)
         else:
             print("Skipping because there's no guid:correlation_id in tags")

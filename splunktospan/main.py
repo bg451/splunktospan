@@ -24,6 +24,7 @@ def main():
     tags_to_rewrite = {
         "correlation_id": join_guid,
         "cid": join_guid,
+        "rid": "guid:rid",
         "component": ls_component_key,
         "sourcetype": ls_component_key}
 
